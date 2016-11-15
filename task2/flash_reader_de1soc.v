@@ -41,8 +41,8 @@ assign flash_mem_writedata = 32'b0;
 
 assign flash_mem_burstcount = 6'b000001;
 
-typedef enum {state_init, state_assert_address, state_do_nothing, state_do_nothing2, state_read_address_write_sample1,
-				state_write_sample2, state_done} state_type;
+typedef enum {state_init, state_assert_address, state_readdatavalid, state_read_address_write_sample1,
+				state_write_sample2, state_increment_count, state_done} state_type;
 state_type state;
 
 reg [31:0] sample;
@@ -52,6 +52,8 @@ reg [15:0] data, q;
 reg wren;
 
 s_memory u0(address, CLOCK_50, data, wren, q);
+
+integer count;
 
 always_ff @(posedge CLOCK_50, negedge KEY[3])
 	if (KEY[3] == 0) begin
@@ -63,25 +65,19 @@ always_ff @(posedge CLOCK_50, negedge KEY[3])
 			flash_mem_read = 1'b0;
 			address = 8'b00000000;
 			wren = 1'b0;
+			count = 0;
 			state <= state_assert_address;
 		end // case state_init
 		state_assert_address: begin
 			flash_mem_read = 1'b1;
-			state <= state_do_nothing;
+			state <= state_readdatavalid;
 		end
-		state_do_nothing: begin
-			flash_mem_read = 1'b0;
-			if (flash_mem_waitrequest == 1'b0) begin
-				state <= state_do_nothing2;
-			end else begin
-				state <= state_do_nothing;
-			end
-		end
-		state_do_nothing2: begin
+		state_readdatavalid: begin
 			if (flash_mem_readdatavalid == 1'b1) begin
+				flash_mem_read = 1'b0;
 				state <= state_read_address_write_sample1;
 			end else begin
-				state <= state_do_nothing2;
+				state <= state_readdatavalid;
 			end
 		end
 		state_read_address_write_sample1: begin
@@ -94,7 +90,18 @@ always_ff @(posedge CLOCK_50, negedge KEY[3])
 			address = address + 1'b1;
 			wren = 1'b1;
 			data = sample[31:16];
-			state <= state_done;
+			state <= state_increment_count;
+		end
+		state_increment_count: begin
+			wren = 1'b0;
+			count = count + 1;
+			if (count < 128) begin
+				flash_mem_address = flash_mem_address + 1'b1;
+				address = address + 1'b1;
+				state <= state_assert_address;
+			end else begin
+				state <= state_done;
+			end
 		end
 		state_done: begin
 			wren = 1'b0;
