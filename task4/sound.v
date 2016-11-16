@@ -10,10 +10,7 @@ output FPGA_I2C_SCLK,AUD_DACDAT,AUD_XCK;
 
 // Define an enumerated type for our state machine
 
-typedef enum {
-         state_wait_until_ready, 
-         state_send_sample,
-         state_wait_for_accepted} state_type;
+typedef enum {state_wait_until_ready, state_send_sample, state_wait_for_accepted} state_type;
 
 // signals that are used to communicate with the audio core
 
@@ -48,6 +45,8 @@ assign read_s = 1'b0;
 // will sound like a single tone when played.  In the lab, you will modify this
 // to send the actual samples (which descirbe a waveform much more complex
 // than just a square wave).
+
+flash_reader_task5 u0(CLOCK_50, KEY);
 	
 always_ff @(posedge CLOCK_50, posedge reset)
    if (reset == 1'b1) begin
