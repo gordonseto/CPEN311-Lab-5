@@ -1,12 +1,11 @@
 module sound (CLOCK_50, CLOCK2_50, KEY,
          AUD_DACLRCK, AUD_ADCLRCK, AUD_BCLK,AUD_ADCDAT,
-			FPGA_I2C_SDAT, FPGA_I2C_SCLK,AUD_DACDAT,AUD_XCK);
+			FPGA_I2C_SDAT, FPGA_I2C_SCLK,AUD_DACDAT,AUD_XCK, SW);
 			
 input CLOCK_50,CLOCK2_50,AUD_DACLRCK, AUD_ADCLRCK, AUD_BCLK,AUD_ADCDAT;
 input [3:0] KEY;
 inout FPGA_I2C_SDAT;
 output FPGA_I2C_SCLK,AUD_DACDAT,AUD_XCK;
-
 
 // Define an enumerated type for our state machine
 
@@ -93,6 +92,19 @@ s_memory2 u0(address, CLOCK_50, data, wren, q);
 integer count;
 
 integer samplenumber;
+	
+typedef enum {normal, fast, slow} playback;
+playback mode;
+
+input [9:0] SW;
+	
+always @(SW) begin
+	case (SW) 
+		10'b0000000010: mode = fast;
+		10'b0000000100: mode = slow;
+		default: mode = normal;
+	endcase
+end	
 	
 always_ff @(posedge CLOCK_50, posedge reset)
    if (reset == 1'b1) begin
@@ -201,7 +213,13 @@ always_ff @(posedge CLOCK_50, posedge reset)
 				    if (write_ready == 1'b0) 
 						if(samplenumber == 1) begin
 							samplenumber = 2;
-							state <= state_wait_until_ready;
+							if (mode == normal) begin
+								state <= state_wait_until_ready;
+							end else if (mode == fast) begin
+								state <= state_assert_address;
+							end else if (mode == slow) begin
+								state <= state_wait_until_ready;
+							end
 						end else begin
 							samplenumber = 1;
 							state <= state_assert_address;
