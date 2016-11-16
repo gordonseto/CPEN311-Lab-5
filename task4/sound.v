@@ -106,6 +106,8 @@ always @(SW) begin
 	endcase
 end	
 	
+integer loopnumber;	
+	
 always_ff @(posedge CLOCK_50, posedge reset)
    if (reset == 1'b1) begin
          state <= state_init;
@@ -149,6 +151,7 @@ always_ff @(posedge CLOCK_50, posedge reset)
 			wren = 1'b0;
 			count = count + 1;
 			samplenumber = 1;
+			loopnumber = 1;
 			if (count < 1048576) begin
 				flash_mem_address = flash_mem_address + 1'b1;
 				address = address + 1'b1;
@@ -212,17 +215,37 @@ always_ff @(posedge CLOCK_50, posedge reset)
 					 
 				    if (write_ready == 1'b0) 
 						if(samplenumber == 1) begin
-							samplenumber = 2;
-							if (mode == normal) begin
+							if (mode == slow) begin					// if mode == slow, samplenumber remains the same for 2 cycles, seen by loopnumber
+								if (loopnumber == 1) begin
+									loopnumber = 2;
+									samplenumber = 1;
+								end else begin
+									loopnumber = 1;
+									samplenumber = 2;
+								end
 								state <= state_wait_until_ready;
-							end else if (mode == fast) begin
-								state <= state_assert_address;
-							end else if (mode == slow) begin
-								state <= state_wait_until_ready;
+							end else begin
+								samplenumber = 2;
+								if (mode == normal) begin
+									state <= state_wait_until_ready;
+								end else if (mode == fast) begin
+									state <= state_assert_address;
+								end 
 							end
 						end else begin
-							samplenumber = 1;
-							state <= state_assert_address;
+							if (mode == slow) begin
+								if (loopnumber == 1) begin
+									loopnumber = 2;
+									samplenumber = 2;
+									state <= state_wait_until_ready;
+								end else begin
+									loopnumber = 1;
+									samplenumber = 1;
+									state <= state_assert_address;
+								end
+							end else begin
+								state <= state_assert_address;
+							end
 						end
 						
 					end // state_wait_for_accepted
