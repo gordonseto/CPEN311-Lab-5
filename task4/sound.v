@@ -24,7 +24,7 @@ wire reset, read_s;
 
 integer cnt;
 state_type state;
-reg [15:0] sample;
+reg signed [15:0] sample;
 
 // instantiate the parts of the audio core. 
 
@@ -173,7 +173,11 @@ always_ff @(posedge CLOCK_50, posedge reset)
 					end else begin
 						sample = samplepair[31:16];
 					end
-					 
+					
+					// divide sample by 64 to lower volume
+					sample = sample/64;
+					
+					
                 // send the sample to the core (it is added to the two FIFOs
                 // as explained in the handout.  We need to be sure to send data
 					 // to both the right and left queue.  Since we are only playing a
